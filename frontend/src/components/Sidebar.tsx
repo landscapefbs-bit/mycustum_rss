@@ -21,8 +21,13 @@ export default function Sidebar({ selectedFeedId, onSelectFeed }: SidebarProps) 
   const [showFeedManager, setShowFeedManager] = useState(false);
   const [refreshingFeeds, setRefreshingFeeds] = useState<Set<number>>(new Set());
   
+  const [recommendLimit, setRecommendLimit] = useState<number>(() => {
+    const saved = localStorage.getItem('myrss_recommend_limit');
+    return saved ? parseInt(saved, 10) : 5;
+  });
+  
   const [templates, setTemplates] = useState<ShareTemplate[]>(() => {
-    const saved = localStorage.getItem('shareTemplates');
+    const saved = localStorage.getItem('myrss_share_templates');
     if (saved) return JSON.parse(saved);
     const legacy = localStorage.getItem('shareTemplate');
     if (legacy) return [{ id: Date.now().toString(), name: 'デフォルト', template: legacy }];
@@ -30,7 +35,8 @@ export default function Sidebar({ selectedFeedId, onSelectFeed }: SidebarProps) 
   });
 
   const saveSettings = () => {
-    localStorage.setItem('shareTemplates', JSON.stringify(templates));
+    localStorage.setItem('myrss_share_templates', JSON.stringify(templates));
+    localStorage.setItem('myrss_recommend_limit', recommendLimit.toString());
     setShowSettings(false);
   };
 
@@ -67,7 +73,7 @@ export default function Sidebar({ selectedFeedId, onSelectFeed }: SidebarProps) 
 
   const fetchFeeds = async () => {
     try {
-      const res = await fetch('http://localhost:8080/api/feeds');
+      const res = await fetch('/api/feeds');
       const data = await res.json();
       if (data) setFeeds(data);
     } catch (e) {
@@ -79,7 +85,7 @@ export default function Sidebar({ selectedFeedId, onSelectFeed }: SidebarProps) 
     const url = prompt("追加するRSSフィードのURLを入力してください:");
     if (!url) return;
     try {
-      await fetch('http://localhost:8080/api/feeds', {
+      await fetch('/api/feeds', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ URL: url })
@@ -97,7 +103,7 @@ export default function Sidebar({ selectedFeedId, onSelectFeed }: SidebarProps) 
     
     setRefreshingFeeds(prev => new Set(prev).add(feedId));
     try {
-      await fetch(`http://localhost:8080/api/feeds/${feedId}/refresh`, { method: 'POST' });
+      await fetch(`/api/feeds/${feedId}/refresh`, { method: 'POST' });
       fetchFeeds();
     } catch (e) {
       console.error("Failed to refresh feed", e);
@@ -140,6 +146,12 @@ export default function Sidebar({ selectedFeedId, onSelectFeed }: SidebarProps) 
           label="後で読む" 
           active={selectedFeedId === -2} // dummy
           onClick={() => onSelectFeed(-2)} 
+        />
+        <NavItem 
+          icon={<Sparkles size={18} className="text-amber-500" />} 
+          label="おすすめ記事 (AI)" 
+          active={selectedFeedId === -3} 
+          onClick={() => onSelectFeed(-3)} 
         />
 
         <div className="pt-6 pb-2">
@@ -248,6 +260,27 @@ export default function Sidebar({ selectedFeedId, onSelectFeed }: SidebarProps) 
                 利用可能な変数:<br/>
                 <code className="text-indigo-500">{"{{title}}"}</code>, <code className="text-indigo-500">{"{{url}}"}</code>, <code className="text-indigo-500">{"{{summary}}"}</code>, <code className="text-indigo-500">{"{{tags}}"}</code>, <code className="text-indigo-500">{"{{date}}"}</code>
               </p>
+              
+              <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  AIおすすめ記事の表示件数
+                </label>
+                <div className="flex items-center gap-4">
+                  <input 
+                    type="range" 
+                    min="1" max="20" step="1" 
+                    value={recommendLimit}
+                    onChange={(e) => setRecommendLimit(parseInt(e.target.value, 10))}
+                    className="flex-1 accent-indigo-500"
+                  />
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-300 w-12 text-center">
+                    {recommendLimit} 件
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-2">
+                  過去のお気に入り傾向をAIが分析し、未読記事の中から指定した件数のおすすめ記事をピックアップします。
+                </p>
+              </div>
             </div>
 
             <div className="mt-8 flex justify-end">

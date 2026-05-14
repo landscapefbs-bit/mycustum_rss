@@ -18,8 +18,9 @@ type Article struct {
 	IsRead      bool           `gorm:"default:false"`
 	IsFavorite  bool           `gorm:"default:false"`
 	IsSaved     bool           `gorm:"default:false"`
-	IsArchived  bool           `gorm:"default:false"`
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	DeletedAt   gorm.DeletedAt `gorm:"index"`
+	IsArchived      bool           `gorm:"default:false"`
+	RecommendReason string         `gorm:"-" json:"RecommendReason,omitempty"`
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	DeletedAt       gorm.DeletedAt `gorm:"index"`
 }

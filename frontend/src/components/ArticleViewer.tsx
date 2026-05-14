@@ -42,14 +42,20 @@ export default function ArticleViewer({ article }: ArticleViewerProps) {
 
   const toggleFavorite = async () => {
     if (!article) return;
-    setIsFavorite(!isFavorite);
-    await fetch(`http://localhost:8080/api/articles/${article.ID}/favorite`, { method: 'PUT' });
+    try {
+      await fetch(`/api/articles/${article.ID}/favorite`, { method: 'PUT' });
+      const updated = { ...article, IsFavorite: !article.IsFavorite };
+      onArticleUpdate(updated);
+    } catch (e) { console.error(e); }
   };
 
   const toggleSaved = async () => {
     if (!article) return;
-    setIsSaved(!isSaved);
-    await fetch(`http://localhost:8080/api/articles/${article.ID}/saved`, { method: 'PUT' });
+    try {
+      await fetch(`/api/articles/${article.ID}/saved`, { method: 'PUT' });
+      const updated = { ...article, IsSaved: !article.IsSaved };
+      onArticleUpdate(updated);
+    } catch (e) { console.error(e); }
   };
 
   const copyUrl = () => {

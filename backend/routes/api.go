@@ -5,6 +5,7 @@ import (
 	"myrss-backend/models"
 	"myrss-backend/services"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -25,6 +26,9 @@ func SetupRoutes(r *gin.Engine) {
 	api.PUT("/articles/:id/favorite", toggleFavorite)
 	api.PUT("/articles/:id/saved", toggleSaved)
 	api.GET("/parse-date", parseDate)
+	
+	api.GET("/recommendations", getRecommendations)
+
 	api.POST("/feeds/:id/refresh", refreshFeed)
 	api.PUT("/feeds/:id", updateFeed)
 	api.PUT("/feeds/order", updateFeedOrder)
@@ -213,7 +217,7 @@ func parseDate(c *gin.Context) {
 		return
 	}
 
-	parsed, err := services.ParseDateQueryWithGemini(q)
+	parsed, err := services.ParseDateQueryWithLLM(q)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -221,6 +225,22 @@ func parseDate(c *gin.Context) {
 
 	config.DB.Create(&parsed)
 	c.JSON(http.StatusOK, parsed)
+}
+
+func getRecommendations(c *gin.Context) {
+	limitStr := c.DefaultQuery("limit", "5")
+	limit, _ := strconv.Atoi(limitStr)
+	if limit <= 0 {
+		limit = 5
+	}
+
+	recs, err := services.GetAIRecommendations(limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, recs)
 }
 
 func refreshFeed(c *gin.Context) {

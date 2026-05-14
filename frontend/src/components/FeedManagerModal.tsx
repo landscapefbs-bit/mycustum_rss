@@ -17,7 +17,7 @@ export default function FeedManagerModal({ onClose, onFeedsUpdated }: FeedManage
 
   const fetchFeeds = async () => {
     try {
-      const res = await fetch('http://localhost:8080/api/feeds');
+      const res = await fetch('/api/feeds');
       const data = await res.json();
       if (data) setFeeds(data);
     } catch (e) {
@@ -49,7 +49,7 @@ export default function FeedManagerModal({ onClose, onFeedsUpdated }: FeedManage
   const handleDelete = async (id: number) => {
     if (!confirm("このフィードと関連するすべての記事を削除しますか？")) return;
     try {
-      await fetch(`http://localhost:8080/api/feeds/${id}`, { method: 'DELETE' });
+      await fetch(`/api/feeds/${id}`, { method: 'DELETE' });
       setFeeds(feeds.filter(f => f.ID !== id));
       onFeedsUpdated();
     } catch (e) {
@@ -59,7 +59,7 @@ export default function FeedManagerModal({ onClose, onFeedsUpdated }: FeedManage
 
   const handleIntervalChange = async (id: number, interval: number) => {
     try {
-      await fetch(`http://localhost:8080/api/feeds/${id}`, {
+      await fetch(`/api/feeds/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fetch_interval: interval })
@@ -72,7 +72,7 @@ export default function FeedManagerModal({ onClose, onFeedsUpdated }: FeedManage
 
   const handleRetentionChange = async (id: number, days: number) => {
     try {
-      await fetch(`http://localhost:8080/api/feeds/${id}`, {
+      await fetch(`/api/feeds/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ retention_days: days })
@@ -86,7 +86,7 @@ export default function FeedManagerModal({ onClose, onFeedsUpdated }: FeedManage
   const saveOrder = async () => {
     try {
       const order = feeds.map(f => f.ID);
-      await fetch('http://localhost:8080/api/feeds/order', {
+      await fetch('/api/feeds/order', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ order })

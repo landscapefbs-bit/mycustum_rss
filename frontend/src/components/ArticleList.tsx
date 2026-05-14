@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { CheckCircle2, Sparkles, Search, SlidersHorizontal, X, Calendar } from 'lucide-react';
+import { CheckCircle2, Sparkles, Search, SlidersHorizontal, X, Calendar, Star, Clock } from 'lucide-react';
 import type { Article } from '../App';
 
 type ArticleListProps = {
@@ -113,6 +113,16 @@ export default function ArticleList({ feedId, selectedArticleId, onSelectArticle
   const fetchArticles = async () => {
     setLoading(true);
     try {
+      if (feedId === -3) {
+        const limit = localStorage.getItem('myrss_recommend_limit') || '5';
+        const res = await fetch(`/api/recommendations?limit=${limit}`);
+        if (!res.ok) throw new Error("Failed to fetch recommendations");
+        const data = await res.json();
+        if (data) setArticles(data);
+        setLoading(false);
+        return;
+      }
+
       const params = new URLSearchParams();
       if (feedId !== null) params.append('feed_id', feedId.toString());
       if (keyword) params.append('keyword', keyword);
@@ -123,7 +133,7 @@ export default function ArticleList({ feedId, selectedArticleId, onSelectArticle
       // Fallback to AI parsing if local parser couldn't figure it out
       if (dateQuery && !parsed.dates && !parsed.dateFrom && !parsed.dateTo) {
         try {
-          const aiRes = await fetch(`http://localhost:8080/api/parse-date?q=${encodeURIComponent(dateQuery)}`);
+          const aiRes = await fetch(`/api/parse-date?q=${encodeURIComponent(dateQuery)}`);
           if (aiRes.ok) {
             const data = await aiRes.json();
             parsed = { dates: data.Dates || '', dateFrom: data.DateFrom || '', dateTo: data.DateTo || '' };
@@ -137,7 +147,7 @@ export default function ArticleList({ feedId, selectedArticleId, onSelectArticle
       if (parsed.dateFrom) params.append('date_from', parsed.dateFrom);
       if (parsed.dateTo) params.append('date_to', parsed.dateTo);
 
-      let url = `http://localhost:8080/api/articles?${params.toString()}`;
+      let url = `/api/articles?${params.toString()}`;
       const res = await fetch(url);
       const data = await res.json();
       if (data) setArticles(data);
@@ -147,10 +157,25 @@ export default function ArticleList({ feedId, selectedArticleId, onSelectArticle
     setLoading(false);
   };
 
+  const toggleFavoriteList = async (id: number) => {
+    try {
+      await fetch(`/api/articles/${id}/favorite`, { method: 'PUT' });
+      setArticles(articles.map(a => a.ID === id ? { ...a, IsFavorite: !a.IsFavorite } : a));
+    } catch (e) { console.error(e); }
+  };
+
+  const toggleSavedList = async (id: number) => {
+    try {
+      await fetch(`/api/articles/${id}/saved`, { method: 'PUT' });
+      setArticles(articles.map(a => a.ID === id ? { ...a, IsSaved: !a.IsSaved } : a));
+    } catch (e) { console.error(e); }
+  };
+
   const getFeedTitle = () => {
     if (feedId === null) return "すべての記事";
     if (feedId === -1) return "お気に入り";
     if (feedId === -2) return "後で読む";
+    if (feedId === -3) return "✨ おすすめ記事 (AI)";
     if (articles.length > 0) return (articles[0] as any).Feed?.Title + "の記事" || "フィードの記事";
     return "フィードの記事";
   };
@@ -239,19 +264,36 @@ export default function ArticleList({ feedId, selectedArticleId, onSelectArticle
             <button
               key={article.ID}
               onClick={() => onSelectArticle(article)}
-              className={`w-full text-left p-4 rounded-2xl transition-all duration-300 border ${
+              className={`group w-full text-left p-4 rounded-2xl transition-all duration-300 border ${
                 selectedArticleId === article.ID
                   ? 'bg-indigo-50 border-indigo-200 dark:bg-indigo-500/10 dark:border-indigo-500/30 shadow-sm'
                   : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800/50 dark:hover:border-slate-700'
               }`}
             >
-              <div className="flex items-center gap-2 text-xs text-slate-500 mb-2">
-                <span className="truncate max-w-[120px] font-medium text-indigo-600/80 dark:text-indigo-400/80">
-                  {/* Assuming Feed is preloaded */}
-                  {(article as any).Feed?.Title || "RSS"}
-                </span>
-                <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
-                <time>{formatDistanceToNow(new Date(article.PublishedAt), { addSuffix: true, locale: ja })}</time>
+              <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="truncate max-w-[120px] font-medium text-indigo-600/80 dark:text-indigo-400/80">
+                    {(article as any).Feed?.Title || "RSS"}
+                  </span>
+                  <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+                  <time>{formatDistanceToNow(new Date(article.PublishedAt), { addSuffix: true, locale: ja })}</time>
+                </div>
+                <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); toggleFavoriteList(article.ID); }} 
+                    className={`p-1.5 rounded-full transition-colors ${article.IsFavorite ? 'text-amber-500 bg-amber-50 dark:bg-amber-500/10 opacity-100' : 'text-slate-400 hover:text-amber-500 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                    title="お気に入り"
+                  >
+                    <Star size={14} className={article.IsFavorite ? "fill-amber-500" : ""} />
+                  </button>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); toggleSavedList(article.ID); }} 
+                    className={`p-1.5 rounded-full transition-colors ${article.IsSaved ? 'text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 opacity-100' : 'text-slate-400 hover:text-indigo-500 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                    title="後で読む"
+                  >
+                    <Clock size={14} className={article.IsSaved ? "fill-indigo-500" : ""} />
+                  </button>
+                </div>
               </div>
               
               <h3 className={`font-semibold text-[15px] leading-snug mb-2 ${article.IsRead ? 'text-slate-500 dark:text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}>
@@ -260,6 +302,13 @@ export default function ArticleList({ feedId, selectedArticleId, onSelectArticle
                 )}
                 {article.Title}
               </h3>
+
+              {(article as any).RecommendReason && (
+                <div className="flex gap-2 items-start text-xs text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 p-2.5 rounded-lg mb-2 border border-indigo-100 dark:border-indigo-800/50">
+                  <Sparkles size={16} className="text-indigo-500 shrink-0 mt-0.5" />
+                  <p className="leading-relaxed font-medium">{(article as any).RecommendReason}</p>
+                </div>
+              )}
               
               {article.Summary && (
                 <div className="flex gap-2 items-start text-xs text-slate-600 dark:text-slate-400 bg-slate-100/50 dark:bg-slate-800/30 p-2 rounded-lg">
